@@ -1,12 +1,12 @@
 #%% Packages
 import numpy as np
-import numpy.random as npr
+import numpy.random as random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
 #%% Set up henon map with random bounded noise
-def Henon(x,a = 1.4,b = 0.3, b_val = 0.1, sig = 1, mu = 0):
+def Henon(x,a = 1.4,b = 0.3, e = 0.6):
     """
     Computes the Henon map with bounded noise.
     Parameters:
@@ -17,13 +17,17 @@ def Henon(x,a = 1.4,b = 0.3, b_val = 0.1, sig = 1, mu = 0):
         sig (float): Standard deviation of the noise.
         mu (float): Mean of the noise.
     """
-    x1 = x[0]
-    x2 = x[1]
-    noise = npr(mu,sig,2)
-    #TODO is this the correct way to bound the noise? 
-    # Too many values are extremity values
-    bounded_noise = np.clip(noise,-b_val,b_val)
-    return np.array([1 - a*x1**2 + x2, b*x1]) + bounded_noise
+    # Seperate out stae variables
+    x1 = x[0,:]
+    x2 = x[1,:]
+    #Generate noise uniformly distributed noise over disk of radius e from the origin
+    angle = random.rand()*2*np.pi #generate random angle in radians
+    #to ensure uniform distribution over disk, radius is square root 
+    #of random number uniformly distributed in [0,1] scaled by e
+    radius = np.sqrt(random.rand())*e 
+    bounded_noise = np.array([radius*np.cos(angle),radius*np.sin(angle)], ndmin = 2).T
+    
+    return np.array([1 - a*x1**2 + x2, b*x1],ndmin=2).T + bounded_noise
     
 #%% plot the Henon map
 def plotHenon(x0, n, a = 0.06, b = 0.3, b_val = 1, sig = 1, mu = 0):
