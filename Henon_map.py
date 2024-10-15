@@ -1,8 +1,10 @@
-#%% Packages
+#%%Packages
 import numpy as np
 import numpy.random as random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import sympy
+from sympy import symbols, Eq, solve
 
 
 #%% Set up henon map with random bounded noise
@@ -29,8 +31,55 @@ def Henon(x,a = 0.607,b = 0.3, e = 0.0625):
     bounded_noise = np.array([radius*np.cos(angle),radius*np.sin(angle)], ndmin = 2)
     #Compute the Henon map with bounded noise
     detSys = np.array([1 - a*x1**2 + x2, b*x1],ndmin=2)
-    return np.array([1 - a*x1**2 + x2, b*x1],ndmin=2) + bounded_noise
+    return detSys + bounded_noise
     
+def FixedPointsHenon(a,b):
+    """
+    Computes the fixed points of the deterministic Henon map.
+    Parameters:
+        a (float): Parameter of the Henon map.
+        b (float): Parameter of the Henon map.
+    """
+    xPlus = (b-1 + np.sqrt((1-b)**2 + 4*a))/(2*a)
+    yPlus = b*xPlus
+    xMinus = (b-1 - np.sqrt((1-b)**2 + 4*a))/(2*a)
+    yMinus = b*xMinus
+    return np.array([[xPlus,xMinus],[yPlus,yMinus]])
+
+def PeriodNPoints(n):
+    """
+    Computes the period n fixed points of the deterministic Henon map.
+    Parameters:
+        a (float): Parameter of the Henon map.
+        b (float): Parameter of the Henon map.
+    """
+    #define variables
+    x0,y0,a,b = symbols('x0 y0 a b')
+
+    xn = x0
+    yn = y0
+    for i in range(n):
+        xn = 1 - a*xn**2 + yn
+        yn = b*xn
+
+    #compute order n periodic fixed points
+    sol = solve([Eq(x0,xn),Eq(y0,yn)],(x0,y0))
+    return sol
+
+def ComputePeriodNPoints(n,a_val,b_val):
+    """
+    Computes the period n fixed points of the deterministic Henon map.
+    Parameters:
+        a (float): Parameter of the Henon map.
+        b (float): Parameter of the Henon map.
+    """
+    fixed_points_symbolic = PeriodNPoints(n)
+    fixed_points_numeric = []
+    for point in fixed_points_symbolic:
+        x0_num = point[0].subs({a: a_val, b: b_val}).evalf()
+        y0_num = point[1].subs({a: a_val, b: b_val}).evalf()
+        fixed_points_numeric.append((x0_num, y0_num))
+    return fixed_points_numeric
 #%% plot the Henon map
 def plotHenon(x0, n, a = 0.06, b = 0.3, b_val = 1, sig = 1, mu = 0):
     """
@@ -77,22 +126,27 @@ plt.show()
 # %% plot steady minimal attractor of Henon map 
 # trying to reproduce plot in slides
 # multiple starting points to reduce for loops
-nStart = 50000
-x0s = random.uniform(0,1,(2,nStart))
+nStart = 10000
+x0s = random.uniform(-1,2,(2,nStart))
 
-n = 10000 #number of iterations
-a = 0.607
+n = 2000 #number of iterations
+a = 0.6
 b = 0.3
 e = 0.0625
 x = x0s
+x0_diverged = np.array([[],[]])
+noDiverged = 0
 for i in range(n):
     x = Henon(x,a,b,e)
     #find values that have diverged
-    notDiverged = np.linalg.norm(x,axis = 0) < 100
+    notDiverged = np.linalg.norm(x,axis = 0) < 10
+    Diverged = np.logical_not(notDiverged)
     #count them
     noFinite = np.sum(notDiverged)
+    noDiverged += np.sum(Diverged)
     # remove the initial points that have diverged 
     # from bassin of attraction set
+    x0_diverged = np.hstack((x0_diverged,x0s[:,Diverged]))
     x0s = x0s[:,notDiverged]
     #take only values that haven't diverged
     x = x[:,notDiverged]
@@ -105,8 +159,45 @@ for i in range(n):
     print(i)
 plt.figure()
 plt.scatter(x[0,:],x[1,:],marker='x', s=0.5)
-plt.scatter(x0s[0,:],x0s[1,:],marker='x', s=0.5, c = 'red')
+plt.scatter(x0s[0,:],x0s[1,:],marker='x', s=0.5, c = 'green')
+plt.scatter(x0_diverged[0,:],x0_diverged[1,:],marker='x', s=0.5, c = 'red')
 #plt.xlim(-1, 1.75)
 #plt.ylim(-0.8, 0.8)
 plt.show()
+# %%
+def PeriodNPoints(n, a_val, b_val):
+    """
+    Computes the period n fixed points of the deterministic Henon map.
+    Parameters:
+        a_val (float): Parameter of the Henon map.
+        b_val (float): Parameter of the Henon map.
+    """
+    # define variables
+    x0, y0 = symbols('x0 y0')
+
+    xn = x0
+    yn = y0
+    for i in range(n):
+        xn_new = 1 - a_val * xn**2 + yn  # Use a_val directly
+        yn = b_val * xn  # Use b_val directly
+        xn = xn_new
+
+    # compute order n periodic fixed points
+    sol = solve([Eq(x0, xn), Eq(y0, yn)], (x0, y0))
+    return sol
+
+def ComputePeriodNPoints(n, a_val, b_val):
+    """
+    Computes the period n fixed points of the deterministic Henon map.
+    Parameters:
+        a_val (float): Parameter of the Henon map.
+        b_val (float): Parameter of the Henon map.
+    """
+    fixed_points_symbolic = PeriodNPoints(n, a_val, b_val)  # Pass numerical parameters directly
+    fixed_points_numeric = []
+    for point in fixed_points_symbolic:
+        x0_num = point[0].evalf()  # Numerical evaluation of x0
+        y0_num = point[1].evalf()  # Numerical evaluation of y0
+        fixed_points_numeric.append((x0_num, y0_num))
+    return fixed_points_numeric
 # %%
